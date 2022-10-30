@@ -1,0 +1,17 @@
+{
+  "name": "blaze_util.nvim",
+  "version": "1.0.0",
+  "description": "Util plugin to support blaze.",
+  "main": "./dist/index.js",
+  "license": "MIT",
+  "dependencies": {
+    "console": "^0.7.2",
+    "fs": "^0.0.1-security",
+    "neovim": "^4.10.1",
+    "tsc": "^2.0.4",
+    "typescript": "^4.8.4"
+  },
+  "devDependencies": {
+    "@types/node": "^18.11.7"
+  }
+}
