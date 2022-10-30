@@ -19,7 +19,7 @@ async function findTarget(file_path) {
     let google3_index = file_path.indexOf("google3");
     let google3_base_path = "";
     if (google3_index == -1) {
-        return "";
+        return ["", "", -1];
     }
     google3_base_path = file_path.substring(0, google3_index + 8 /*google3/*/);
     // myLogger.log("google3_base_path: " + google3_base_path);
@@ -40,10 +40,14 @@ async function findTarget(file_path) {
             });
             let current_target_name = "";
             let find_target_file = false;
+            let build_rule_line_number = 0;
+            let current_line = 0;
             for await (const line of read_line) {
                 // Finds the build rule.
+                current_line = current_line + 1;
                 if (line.match(/^\w+\(/)) {
                     current_target_name = "";
+                    build_rule_line_number = current_line;
                 }
                 ;
                 // Finds the target file.
@@ -65,7 +69,7 @@ async function findTarget(file_path) {
                     let google3_relative_path = path.relative(google3_base_path, current_dir);
                     let target = "//" + google3_relative_path + ":" + current_target_name;
                     // myLogger.log(target);
-                    return target;
+                    return [target, build_file_path, build_rule_line_number];
                 }
                 // myLogger.log(`Line from file: ${line}`);
             }
@@ -77,7 +81,7 @@ async function findTarget(file_path) {
             current_dir = path.resolve(current_dir, '..');
         }
     }
-    return "";
+    return ["", "", -1];
 }
 function default_1(plugin) {
     plugin.setOptions({ dev: true });
@@ -93,7 +97,7 @@ function default_1(plugin) {
         try {
             // await plugin.nvim.outWrite('Dayman (ah-ah-ah) \n');
             let getcwd = await plugin.nvim.commandOutput("echo expand('%:p')");
-            const blaze_target = await findTarget(getcwd);
+            const [blaze_target] = await findTarget(getcwd);
             if (blaze_target == "") {
                 return;
             }
@@ -112,12 +116,27 @@ function default_1(plugin) {
         try {
             // await plugin.nvim.outWrite('Dayman (ah-ah-ah) \n');
             let getcwd = await plugin.nvim.commandOutput("echo expand('%:p')");
-            const blaze_target = await findTarget(getcwd);
+            const [blaze_target] = await findTarget(getcwd);
             if (blaze_target == "") {
                 return;
             }
             await plugin.nvim.command("below sp | below terminal blaze build -c opt " + blaze_target);
             await plugin.nvim.command("execute(\"normal \\<c-w>\\<c-p>\")");
+        }
+        catch (err) {
+            myLogger.log(err);
+        }
+    }, { sync: false });
+    plugin.registerCommand('GoBuildRule', async () => {
+        try {
+            // await plugin.nvim.outWrite('Dayman (ah-ah-ah) \n');
+            let getcwd = await plugin.nvim.commandOutput("echo expand('%:p')");
+            const [blaze_target, build_file_path, build_rule_line_number] = await findTarget(getcwd);
+            if (blaze_target == "") {
+                return;
+            }
+            await plugin.nvim.command("edit " + build_file_path);
+            await plugin.nvim.command('execute("normal ' + build_rule_line_number + 'G")');
         }
         catch (err) {
             myLogger.log(err);
