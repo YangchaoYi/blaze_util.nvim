@@ -149,8 +149,7 @@ function default_1(plugin) {
             if (blaze_target == "") {
                 return;
             }
-            await plugin.nvim.command("edit " + build_file_path);
-            await plugin.nvim.command('execute("normal ' + build_rule_line_number + 'G")');
+            await plugin.nvim.command(`edit +${build_rule_line_number}  ${build_file_path}`);
         }
         catch (err) {
             myLogger.log(err);
