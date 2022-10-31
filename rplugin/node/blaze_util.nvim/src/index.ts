@@ -3,6 +3,7 @@ import { Console } from 'console';
 // get fs module for creating write streams
 import fs from 'fs';
 import readline from 'node:readline';
+import { chdir } from 'node:process';
 // import { VimValue } from 'neovim/lib/types/VimValue';
 
 // make a new logger
@@ -154,15 +155,20 @@ export default function(plugin : NvimPlugin) : void {
 
   plugin.registerCommand('OpenFilesAtRev', async () => {
     try {
+      // let google3_index = file_path.indexOf("google3");
+      let vim_working_dir = await plugin.nvim.commandOutput("echo getcwd()")
+      chdir(vim_working_dir);
+      // myLogger.log(vim_working_dir);
       execute("hg list", async (stdout : string) => {
-        myLogger.log(stdout);
+        // myLogger.log(stdout);
         let file_list : Array<string> = stdout.split('\n');
         file_list.forEach(async (file : string) => {
           if (file != "") {
             // myLogger.log(file);
             await plugin.nvim.command("badd " + file);
           }
-        })
+        });
+        await plugin.nvim.command("call DeleteEmptyBuffers()");
       });
     } catch (err) {
       myLogger.log(err);
@@ -172,9 +178,9 @@ export default function(plugin : NvimPlugin) : void {
   plugin.registerCommand('DeleteAllBuffer', async () => {
     try {
       let modified_buffer : string = await plugin.nvim.commandOutput("echo getbufinfo({'bufmodified': 1})");
-      myLogger.log(modified_buffer);
+      // myLogger.log(modified_buffer);
       let modified_buffer_list : Array<string> | null = modified_buffer.match(/{(.|[\s\S])*?}/g)
-      myLogger.log(modified_buffer_list);
+      // myLogger.log(modified_buffer_list);
       if (modified_buffer_list != null) {
         myLogger.log("send error message to nvim");
         await plugin.nvim.outWrite('Error: some buffers are modified but not saved.\n');

@@ -7,6 +7,7 @@ const console_1 = require("console");
 // get fs module for creating write streams
 const fs_1 = __importDefault(require("fs"));
 const node_readline_1 = __importDefault(require("node:readline"));
+const node_process_1 = require("node:process");
 // import { VimValue } from 'neovim/lib/types/VimValue';
 // make a new logger
 const myLogger = new console_1.Console({
@@ -157,8 +158,12 @@ function default_1(plugin) {
     }, { sync: false });
     plugin.registerCommand('OpenFilesAtRev', async () => {
         try {
+            // let google3_index = file_path.indexOf("google3");
+            let vim_working_dir = await plugin.nvim.commandOutput("echo getcwd()");
+            (0, node_process_1.chdir)(vim_working_dir);
+            // myLogger.log(vim_working_dir);
             execute("hg list", async (stdout) => {
-                myLogger.log(stdout);
+                // myLogger.log(stdout);
                 let file_list = stdout.split('\n');
                 file_list.forEach(async (file) => {
                     if (file != "") {
@@ -166,6 +171,7 @@ function default_1(plugin) {
                         await plugin.nvim.command("badd " + file);
                     }
                 });
+                await plugin.nvim.command("call DeleteEmptyBuffers()");
             });
         }
         catch (err) {
@@ -175,9 +181,9 @@ function default_1(plugin) {
     plugin.registerCommand('DeleteAllBuffer', async () => {
         try {
             let modified_buffer = await plugin.nvim.commandOutput("echo getbufinfo({'bufmodified': 1})");
-            myLogger.log(modified_buffer);
+            // myLogger.log(modified_buffer);
             let modified_buffer_list = modified_buffer.match(/{(.|[\s\S])*?}/g);
-            myLogger.log(modified_buffer_list);
+            // myLogger.log(modified_buffer_list);
             if (modified_buffer_list != null) {
                 myLogger.log("send error message to nvim");
                 await plugin.nvim.outWrite('Error: some buffers are modified but not saved.\n');
