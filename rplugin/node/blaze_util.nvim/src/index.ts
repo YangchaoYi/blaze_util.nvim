@@ -11,6 +11,19 @@ const myLogger = new Console({
   stderr: fs.createWriteStream(__dirname + "/errStdErr.txt"),
 });
 
+var exec = require('child_process').exec;
+function execute(command : string, callback : Function) {
+  exec(command, function(error : any, stdout : any, stderr : any) {
+    if (error) {
+      myLogger.log(error);
+    }
+    if (stderr) {
+      myLogger.log(stderr);
+    }
+    callback(stdout);
+  });
+};
+
 // Given a file usr/ycyi/.../google3/ads/ragnarok/abc.cc
 // Returns //ads/ragnarok:abc_target
 async function findTarget(file_path : string) : Promise<[string, string, number]> {
@@ -134,6 +147,40 @@ export default function(plugin : NvimPlugin) : void {
       }
       await plugin.nvim.command("edit " + build_file_path);
       await plugin.nvim.command('execute("normal ' + build_rule_line_number + 'G")');
+    } catch (err) {
+      myLogger.log(err);
+    }
+  }, { sync: false });
+
+  plugin.registerCommand('OpenFilesAtRev', async () => {
+    try {
+      execute("hg list", async (stdout : string) => {
+        myLogger.log(stdout);
+        let file_list : Array<string> = stdout.split('\n');
+        file_list.forEach(async (file : string) => {
+          if (file != "") {
+            // myLogger.log(file);
+            await plugin.nvim.command("badd " + file);
+          }
+        })
+      });
+    } catch (err) {
+      myLogger.log(err);
+    }
+  }, { sync: false });
+
+  plugin.registerCommand('DeleteAllBuffer', async () => {
+    try {
+      let modified_buffer : string = await plugin.nvim.commandOutput("echo getbufinfo({'bufmodified': 1})");
+      myLogger.log(modified_buffer);
+      let modified_buffer_list : Array<string> | null = modified_buffer.match(/{(.|[\s\S])*?}/g)
+      myLogger.log(modified_buffer_list);
+      if (modified_buffer_list != null) {
+        myLogger.log("send error message to nvim");
+        await plugin.nvim.outWrite('Error: some buffers are modified but not saved.\n');
+        // return;
+      }
+      await plugin.nvim.command('%bd');
     } catch (err) {
       myLogger.log(err);
     }
