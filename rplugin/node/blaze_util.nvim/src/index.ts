@@ -93,6 +93,51 @@ async function findTarget(file_path : string) : Promise<[string, string, number]
   return ["", "", -1];
 }
 
+async function findTestCase(file_path : string, current_line : number) : Promise<string> {
+  let google3_index = file_path.indexOf("google3");
+  if (google3_index == -1) {
+    return "";
+  }
+  const path = require('path');
+  const file_name = path.parse(file_path).name;
+  if (!file_name.endsWith("test")) {
+    return "";
+  }
+  try {
+    // fileContents = fs.readFileSync('foo.bar');
+    // const file = fs.readFileSync(build_file_path);
+    const fileStream = fs.createReadStream(file_path);
+    const read_line = readline.createInterface({
+      input: fileStream,
+      crlfDelay: Infinity
+    });
+    let test_class : string = "";
+    let test_case : string = "";
+    let loop_line : number = 0;
+    for await (const line of read_line) {
+      loop_line = loop_line + 1;
+      myLogger.log(`loop_line: ${loop_line}`)
+      let match_test_case = line.match(/^TEST\w+\((\w+), *?(\w+)\)/);
+      if (match_test_case) {
+        test_class = match_test_case[1];
+        test_case = match_test_case[2];
+      };
+      if (loop_line == current_line) {
+        myLogger.log(`matched loop_line: ${loop_line}`)
+        if (test_class == "" || test_case == "") {
+          return "";
+        }
+        return `${test_class}.${test_case}`;
+      }
+      // myLogger.log(`Line from file: ${line}`);
+    }
+  } catch (err) {
+    // If the error does't exist, then we go to the parent dir.
+    myLogger.log(err);
+  }
+  return "";
+}
+
 export default function(plugin : NvimPlugin) : void {
   plugin.setOptions({ dev: true });
 
@@ -117,6 +162,37 @@ export default function(plugin : NvimPlugin) : void {
         return;
       }
       await plugin.nvim.command("below sp | below terminal blaze test -c opt " + blaze_target);
+      await plugin.nvim.command("execute(\"normal \\<c-w>\\<c-p>\")");
+    } catch (err) {
+      myLogger.log(err);
+    }
+  }, { sync: false });
+
+  plugin.registerCommand('TestCurrentCase', async () => {
+    try {
+      // Finds the test target.
+      let getcwd : string = await plugin.nvim.commandOutput("echo expand('%:p')");
+      const [blaze_target] = await findTarget(getcwd);
+      if (blaze_target == "") {
+        return;
+      }
+      if (!blaze_target.endsWith("test")) {
+        await plugin.nvim.outWrite('Error: current file is not a test file.\n');
+        return;
+      }
+
+      // Finds the test case.
+      let current_line : number = Number(await plugin.nvim.commandOutput("echo line('.')"));
+      myLogger.log(`current_line: ${current_line}`)
+      const test_case = await findTestCase(getcwd, current_line);
+      myLogger.log(`test_case: ${test_case}`);
+      if (test_case == "") {
+        await plugin.nvim.outWrite('Error: did not find the test case.\n');
+        return;
+      }
+
+      // Sends command to vim to test the test case.
+      await plugin.nvim.command(`below sp | below terminal blaze test -c opt ${blaze_target} --test_filter=${test_case}`);
       await plugin.nvim.command("execute(\"normal \\<c-w>\\<c-p>\")");
     } catch (err) {
       myLogger.log(err);
