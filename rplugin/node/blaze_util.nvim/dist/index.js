@@ -120,7 +120,7 @@ async function findTestCase(file_path, current_line) {
         let loop_line = 0;
         for await (const line of read_line) {
             loop_line = loop_line + 1;
-            myLogger.log(`loop_line: ${loop_line}`);
+            // myLogger.log(`loop_line: ${loop_line}`)
             let match_test_case = line.match(/^TEST\w+\((\w+), *?(\w+)\)/);
             if (match_test_case) {
                 test_class = match_test_case[1];
@@ -128,7 +128,7 @@ async function findTestCase(file_path, current_line) {
             }
             ;
             if (loop_line == current_line) {
-                myLogger.log(`matched loop_line: ${loop_line}`);
+                // myLogger.log(`matched loop_line: ${loop_line}`)
                 if (test_class == "" || test_case == "") {
                     return "";
                 }
@@ -186,9 +186,9 @@ function default_1(plugin) {
             }
             // Finds the test case.
             let current_line = Number(await plugin.nvim.commandOutput("echo line('.')"));
-            myLogger.log(`current_line: ${current_line}`);
+            // myLogger.log(`current_line: ${current_line}`)
             const test_case = await findTestCase(getcwd, current_line);
-            myLogger.log(`test_case: ${test_case}`);
+            // myLogger.log(`test_case: ${test_case}`);
             if (test_case == "") {
                 await plugin.nvim.outWrite('Error: did not find the test case.\n');
                 return;
