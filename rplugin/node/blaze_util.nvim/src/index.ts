@@ -4,6 +4,7 @@ import { Console } from 'console';
 import fs from 'fs';
 import readline from 'node:readline';
 import { chdir } from 'node:process';
+// import XRegExp from 'xregexp';
 // import { VimValue } from 'neovim/lib/types/VimValue';
 
 // make a new logger
@@ -24,6 +25,17 @@ function execute(command : string, callback : Function) {
     callback(stdout);
   });
 };
+
+class TestCase {
+  name!: string;
+  start_index!: number;
+  end_index!: number;
+  constructor(name : string, start_index : number, end_index : number) {
+    this.name = name;
+    this.start_index = start_index;
+    this.end_index = end_index;
+  }
+}
 
 // Given a file usr/ycyi/.../google3/ads/ragnarok/abc.cc
 // Returns //ads/ragnarok:abc_target
@@ -93,7 +105,60 @@ async function findTarget(file_path : string) : Promise<[string, string, number]
   return ["", "", -1];
 }
 
-async function findTestCase(file_path : string, current_line : number) : Promise<string> {
+function findAllTestCase(file : string) : Array<TestCase> {
+  let regex_match_result : RegExpExecArray | null;
+  let test_cases : Array<TestCase> = [];
+  const test_case_pattern = /TEST\w+\((\w+),[\s\S]*?(\w+)\)[\s\S]*?(?=\{)/g;
+  while ((regex_match_result = test_case_pattern.exec(file)) !== null) {
+    test_cases.push(
+      new TestCase(
+        `${regex_match_result[1]}.${regex_match_result[2]}`,
+        test_case_pattern.lastIndex - regex_match_result[0].length,
+        test_case_pattern.lastIndex));
+  }
+  for (let test_case_index in test_cases) {
+    // myLogger.log(test_cases[test_case_index]);
+    // according the regex pattern above, the end index should point to a "{".
+    let parentheses_count = 1;
+    let index : number = test_cases[test_case_index].end_index;
+    // myLogger.log(file.substring(index, index + 10));
+    while (index < file.length && parentheses_count != 0) {
+      index = index + 1;
+      if (file[index] == "}") {
+        parentheses_count = parentheses_count - 1;
+      }
+      if (file[index] == "{") {
+        parentheses_count = parentheses_count + 1;
+      }
+    }
+    if (parentheses_count == 0) {
+      // myLogger.log(`last index: ${index}`);
+      test_cases[test_case_index].end_index = index;
+    }
+  }
+  return test_cases;
+}
+
+function getPos(file: string, current_line : number, current_column : number) : number {
+  let index = 0;
+  let line = 1;
+  let column = 0;
+  while (index < file.length) {
+    if (file[index] == '\n') {
+      line = line + 1;
+      column = 0;
+    } else {
+      column = column + 1;
+    }
+    if (current_line == line && current_column == column) {
+      return index;
+    }
+    index = index + 1;
+  }
+  return -1;
+}
+
+async function findTestCase(file_path : string, current_line : number, current_column : number) : Promise<string> {
   let google3_index = file_path.indexOf("google3");
   if (google3_index == -1) {
     return "";
@@ -104,32 +169,16 @@ async function findTestCase(file_path : string, current_line : number) : Promise
     return "";
   }
   try {
-    // fileContents = fs.readFileSync('foo.bar');
-    // const file = fs.readFileSync(build_file_path);
-    const fileStream = fs.createReadStream(file_path);
-    const read_line = readline.createInterface({
-      input: fileStream,
-      crlfDelay: Infinity
-    });
-    let test_class : string = "";
-    let test_case : string = "";
-    let loop_line : number = 0;
-    for await (const line of read_line) {
-      loop_line = loop_line + 1;
-      // myLogger.log(`loop_line: ${loop_line}`)
-      let match_test_case = line.match(/^TEST\w+\((\w+), *?(\w+)\)/);
-      if (match_test_case) {
-        test_class = match_test_case[1];
-        test_case = match_test_case[2];
-      };
-      if (loop_line == current_line) {
-        // myLogger.log(`matched loop_line: ${loop_line}`)
-        if (test_class == "" || test_case == "") {
-          return "";
-        }
-        return `${test_class}.${test_case}`;
+    const file_buffer : Buffer = fs.readFileSync(file_path);
+    const file_content : string = file_buffer.toString();
+    const test_cases = findAllTestCase(file_content);
+    // myLogger.log(test_cases);
+    const pos = getPos(file_content, current_line, current_column);
+    // myLogger.log(pos);
+    for (let test_case of test_cases) {
+      if (pos >= test_case.start_index && pos <= test_case.end_index) {
+        return test_case.name;
       }
-      // myLogger.log(`Line from file: ${line}`);
     }
   } catch (err) {
     // If the error does't exist, then we go to the parent dir.
@@ -183,8 +232,9 @@ export default function(plugin : NvimPlugin) : void {
 
       // Finds the test case.
       let current_line : number = Number(await plugin.nvim.commandOutput("echo line('.')"));
+      let current_column : number = Number(await plugin.nvim.commandOutput("echo col('.')"));
       // myLogger.log(`current_line: ${current_line}`)
-      const test_case = await findTestCase(getcwd, current_line);
+      const test_case = await findTestCase(getcwd, current_line, current_column);
       // myLogger.log(`test_case: ${test_case}`);
       if (test_case == "") {
         await plugin.nvim.outWrite('Error: did not find the test case.\n');
