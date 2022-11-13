@@ -108,7 +108,7 @@ async function findTarget(file_path : string) : Promise<[string, string, number]
 function findAllTestCase(file : string) : Array<TestCase> {
   let regex_match_result : RegExpExecArray | null;
   let test_cases : Array<TestCase> = [];
-  const test_case_pattern = /TEST\w+\((\w+),[\s\S]*?(\w+)\)[\s\S]*?(?=\{)/g;
+  const test_case_pattern = /TEST\w*\((\w+),[\s\S]*?(\w+)\)[\s\S]*?(?=\{)/g;
   while ((regex_match_result = test_case_pattern.exec(file)) !== null) {
     test_cases.push(
       new TestCase(

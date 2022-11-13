@@ -108,7 +108,7 @@ async function findTarget(file_path) {
 function findAllTestCase(file) {
     let regex_match_result;
     let test_cases = [];
-    const test_case_pattern = /TEST\w+\((\w+),[\s\S]*?(\w+)\)[\s\S]*?(?=\{)/g;
+    const test_case_pattern = /TEST\w*\((\w+),[\s\S]*?(\w+)\)[\s\S]*?(?=\{)/g;
     while ((regex_match_result = test_case_pattern.exec(file)) !== null) {
         test_cases.push(new TestCase(`${regex_match_result[1]}.${regex_match_result[2]}`, test_case_pattern.lastIndex - regex_match_result[0].length, test_case_pattern.lastIndex));
     }
