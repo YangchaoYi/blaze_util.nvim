@@ -204,7 +204,7 @@ function default_1(plugin) {
                 await plugin.nvim.outWrite('Error: current file is not a test file.\n');
                 return;
             }
-            await plugin.nvim.command("below sp | below terminal blaze test -c opt " + blaze_target);
+            await plugin.nvim.command("below terminal blaze test -c opt " + blaze_target);
             await plugin.nvim.command("execute(\"normal \\<c-w>\\<c-p>\")");
         }
         catch (err) {
@@ -234,7 +234,7 @@ function default_1(plugin) {
                 return;
             }
             // Sends command to vim to test the test case.
-            await plugin.nvim.command(`below sp | below terminal blaze test -c opt ${blaze_target} --test_filter=${test_case}`);
+            await plugin.nvim.command(`below terminal blaze test -c opt ${blaze_target} --test_filter=${test_case}`);
             await plugin.nvim.command("execute(\"normal \\<c-w>\\<c-p>\")");
         }
         catch (err) {
@@ -249,7 +249,7 @@ function default_1(plugin) {
             if (blaze_target == "") {
                 return;
             }
-            await plugin.nvim.command("below sp | below terminal blaze build -c opt " + blaze_target);
+            await plugin.nvim.command("below terminal blaze build -c opt " + blaze_target);
             await plugin.nvim.command("execute(\"normal \\<c-w>\\<c-p>\")");
         }
         catch (err) {
